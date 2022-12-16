@@ -1,0 +1,143 @@
+# These represent example values used for the Suricata integration demo. These will need to be changed
+# and updated but it represents a baseline.
+logging:
+  values:
+    kibana:
+      count: 1
+      resources:
+        requests:
+          cpu: 400m
+          memory: 1Gi
+        limits:
+          cpu: null  # nonexistent cpu limit results in faster spin up
+          memory: null
+    elasticsearch:
+      master:
+        count: 1
+        resources:
+          requests:
+            cpu: 400m
+            memory: 2Gi
+          limits:
+            cpu: null
+            memory: null
+      data:
+        count: 1
+        resources:
+          requests:
+            cpu: 400m
+            memory: 2Gi
+          limits:
+            cpu: null
+            memory: null
+
+clusterAuditor:
+  enabled: false
+  values:
+    resources:
+      requests:
+        cpu: 400m
+        memory: 2Gi
+      limits:
+        cpu: null
+        memory: null
+
+gatekeeper:
+  enabled: false
+  values:
+    replicas: 1
+    controllerManager:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: null
+          memory: null
+    audit:
+      resources:
+        requests:
+          cpu: 400m
+          memory: 768Mi
+        limits:
+          cpu: null
+          memory: null
+    violations:
+      allowedDockerRegistries:
+        enforcementAction: dryrun
+
+istio:
+  values:
+    values: # possible values found here https://istio.io/v1.5/docs/reference/config/installation-options (ignore 1.5, latest docs point here)
+      global: # global istio operator values
+        proxy: # mutating webhook injected istio sidecar proxy's values
+          resources:
+            requests:
+              cpu: 0m # null get ignored if used here
+              memory: 0Mi
+            limits:
+              cpu: 0m
+              memory: 0Mi
+
+twistlock:
+  enabled: false # twistlock requires a license to work, so we're disabling it
+
+fluentbit:
+  git:
+    tag: ""
+    branch: issue-52
+  values:
+    config:
+      extraConfigFiles:
+        suricata.conf: |
+          [INPUT]
+              Name tail
+              Path /data/suricata/eve.json
+              Tag kube.*
+              Parser  suricata-json
+              Mem_Buf_Limit 5MB
+
+      extraFiles:
+        suricata2.conf: |
+          [INPUT]
+              Name tail
+              Path /data/suricata/eve.json
+              Tag kube.*
+              Parser  suricata-json
+              Mem_Buf_Limit 5MB
+
+      parsersFiles:
+        suricata-parser.conf: |
+          [PARSER]
+              Name suricata-json
+              Format json
+              Time_Key timestamp
+              Time_Format %Y-%m-%dT%H:%M:%S.%6N%z
+
+    daemonSetVolumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: suricatalogs
+        hostPath:
+          path: /data/suricata
+      - name: etcmachineid
+        hostPath:
+          path: /etc/machine-id
+          type: File
+    daemonSetVolumeMounts:
+      - name: varlog
+        mountPath: /var/log
+        readOnly: true
+      - name: varlibdockercontainers
+        mountPath: /var/lib/docker/containers
+        readOnly: true
+      - name: suricatalogs
+        mountPath: /data/suricata
+        readOnly: true
+      - name: etcmachineid
+        mountPath: /etc/machine-id
+        readOnly: true
